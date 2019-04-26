@@ -26,7 +26,7 @@ public class ExerciseBase {
 	public static SourceFunction<TaxiFare> fares = null;
 	public static SourceFunction<String> strings = null;
 	public static SinkFunction out = null;
-	public static int parallelism = 4;
+	public static int parallelism = 1; // Modified from 4 to 1
 
 	public final static String pathToRideData = "/home/tian/workspace/flink-training-exercises/trainingData/nycTaxiRides.gz";
 	public final static String pathToFareData = "/home/tian/workspace/flink-training-exercises/trainingData/nycTaxiFares.gz";
