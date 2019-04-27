@@ -20,10 +20,16 @@ import com.dataartisans.flinktraining.exercises.datastream_java.datatypes.TaxiFa
 import com.dataartisans.flinktraining.exercises.datastream_java.sources.TaxiFareSource;
 import com.dataartisans.flinktraining.exercises.datastream_java.utils.ExerciseBase;
 import com.dataartisans.flinktraining.exercises.datastream_java.utils.MissingSolutionException;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
 
 /**
  * The "Hourly Tips" exercise of the Flink training
@@ -55,12 +61,36 @@ public class HourlyTipsExercise extends ExerciseBase {
 		// start the data generator
 		DataStream<TaxiFare> fares = env.addSource(fareSourceOrTest(new TaxiFareSource(input, maxEventDelay, servingSpeedFactor)));
 
-		throw new MissingSolutionException();
+//		throw new MissingSolutionException();
 
-//		printOrTest(hourlyMax);
+		// compute tips per hour for each driver
+		DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
+				.keyBy(new KeySelector<TaxiFare, Long>() {
+					@Override
+					public Long getKey(TaxiFare var1) {
+						return var1.driverId;
+					}
+				})
+				.timeWindow(Time.hours(1))
+				.process(new ProcessWindowFunction<TaxiFare, Tuple3<Long, Long, Float>, Long, TimeWindow>() {
+					@Override
+					public void process(Long aLong, Context context, Iterable<TaxiFare> iterable, Collector<Tuple3<Long, Long, Float>> collector) throws Exception {
+						float tipSum = 0;
+						for (TaxiFare it : iterable) {
+							tipSum += it.tip;
+						}
+						collector.collect(new Tuple3<>(context.window().getEnd(), aLong, tipSum));
+					}
+				});
+
+		DataStream<Tuple3<Long, Long, Float>> hourlyMax = hourlyTips
+				.timeWindowAll(Time.hours(1))
+				.maxBy(2);
+
+		printOrTest(hourlyMax);
 
 		// execute the transformation pipeline
-//		env.execute("Hourly Tips (java)");
+		env.execute("Hourly Tips (java)");
 	}
 
 }
